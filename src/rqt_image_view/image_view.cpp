@@ -64,6 +64,7 @@ void ImageView::initPlugin(qt_gui_cpp::PluginContext& context)
   }
   context.addWidget(widget_);
 
+  // primary image
   updateTopicList();
   ui_.topics_combo_box->setCurrentIndex(ui_.topics_combo_box->findText(""));
   connect(ui_.topics_combo_box, SIGNAL(currentIndexChanged(int)), this, SLOT(onTopicChanged(int)));
@@ -76,6 +77,19 @@ void ImageView::initPlugin(qt_gui_cpp::PluginContext& context)
 
   connect(ui_.dynamic_range_check_box, SIGNAL(toggled(bool)), this, SLOT(onDynamicRange(bool)));
 
+  connect(ui_.frozen_check_box, SIGNAL(toggled(bool)), this, SLOT(onFrozen(bool)));
+
+  // overlay image
+  connect(ui_.overlay_check_box, SIGNAL(toggled(bool)), this, SLOT(onOverlay(bool)));
+  onOverlay(false);
+  ui_.topics_combo_box->setCurrentIndex(ui_.topics_combo_box_overlay->findText(""));
+  connect(ui_.topics_combo_box_overlay, SIGNAL(currentIndexChanged(int)), this, SLOT(onOverlayTopicChanged(int)));
+
+  connect(ui_.dynamic_range_check_box_overlay, SIGNAL(toggled(bool)), this, SLOT(onOverlayDynamicRange(bool)));
+
+  connect(ui_.frozen_check_box_overlay, SIGNAL(toggled(bool)), this, SLOT(onOverlayFrozen(bool)));
+
+  // whole image
   ui_.save_as_image_push_button->setIcon(QIcon::fromTheme("document-save-as"));
   connect(ui_.save_as_image_push_button, SIGNAL(pressed()), this, SLOT(saveImage()));
 
@@ -86,6 +100,11 @@ void ImageView::initPlugin(qt_gui_cpp::PluginContext& context)
   if (!argv.empty()) {
     arg_topic_name = argv[0];
     selectTopic(arg_topic_name);
+    if (argv.size() > 1)
+    {
+      arg_overlay_topic_name = argv[1];
+      selectOverlayTopic(arg_overlay_topic_name);
+    }
   }
   pub_topic_custom_ = false;
 
@@ -124,6 +143,7 @@ void ImageView::initPlugin(qt_gui_cpp::PluginContext& context)
 void ImageView::shutdownPlugin()
 {
   subscriber_.shutdown();
+  overlay_subscriber_.shutdown();
   pub_mouse_left_.reset();
 }
 
@@ -160,6 +180,7 @@ void ImageView::restoreSettings(const qt_gui_cpp::Settings& plugin_settings, con
   ui_.num_gridlines_spin_box->setValue(num_gridlines_);
 
   QString topic = instance_settings.value("topic", "").toString();
+  QString overlay_topic = instance_settings.value("overlay_topic", "").toString();
   // don't overwrite topic name passed as command line argument
   if (!arg_topic_name.isEmpty())
   {
@@ -169,6 +190,15 @@ void ImageView::restoreSettings(const qt_gui_cpp::Settings& plugin_settings, con
   {
     //qDebug("ImageView::restoreSettings() topic '%s'", topic.toStdString().c_str());
     selectTopic(topic);
+  }
+
+  if (!arg_overlay_topic_name.isEmpty())
+  {
+    arg_overlay_topic_name = "";
+  }
+  else
+  {
+    selectOverlayTopic(overlay_topic);
   }
 
   bool publish_click_location = instance_settings.value("publish_click_location", false).toBool();
@@ -217,6 +247,7 @@ void ImageView::updateTopicList()
   }
 
   QString selected = ui_.topics_combo_box->currentText();
+  QString selected_overlay = ui_.topics_combo_box->currentText();
 
   // fill combo box
   QList<QString> topics = getTopics(message_types, message_sub_types, transports).values();
@@ -228,10 +259,12 @@ void ImageView::updateTopicList()
     QString label(*it);
     label.replace(" ", "/");
     ui_.topics_combo_box->addItem(label, QVariant(*it));
+    ui_.topics_combo_box_overlay->addItem(label, QVariant(*it));
   }
 
   // restore previous selection
   selectTopic(selected);
+  selectOverlayTopic(selected_overlay);
 }
 
 QSet<QString> ImageView::getTopics(const QSet<QString>& message_types, const QSet<QString>& message_sub_types, const QList<QString>& transports)
@@ -298,6 +331,20 @@ void ImageView::selectTopic(const QString& topic)
   ui_.topics_combo_box->setCurrentIndex(index);
 }
 
+void ImageView::selectOverlayTopic(const QString& topic)
+{
+  int index = ui_.topics_combo_box_overlay->findText(topic);
+  if (index == -1)
+  {
+    // add topic name to list if not yet in
+    QString label(topic);
+    label.replace(" ", "/");
+    ui_.topics_combo_box_overlay->addItem(label, QVariant(topic));
+    index = ui_.topics_combo_box_overlay->findText(topic);
+  }
+  ui_.topics_combo_box_overlay->setCurrentIndex(index);
+}
+
 void ImageView::onTopicChanged(int index)
 {
   conversion_mat_.release();
@@ -326,6 +373,33 @@ void ImageView::onTopicChanged(int index)
   onMousePublish(ui_.publish_click_location_check_box->isChecked());
 }
 
+void ImageView::onOverlayTopicChanged(int index)
+{
+  overlay_conversion_mat_.release();
+
+  overlay_subscriber_.shutdown();
+
+  ui_.image_frame->setImage(QImage());
+  QStringList parts = ui_.topics_combo_box_overlay->itemData(index).toString().split(" ");
+  QString topic = parts.first();
+  QString transport = parts.length() == 2 ? parts.last() : "raw";
+
+  if (!topic.isEmpty())
+  {
+    image_transport::ImageTransport it(node_);
+    const image_transport::TransportHints hints(node_.get(), transport.toStdString());
+    try {
+      overlay_subscriber_ = it.subscribe(topic.toStdString(), 1, &ImageView::callbackImageOverlay, this, &hints);
+      qDebug("ImageView::onOverlayTopicChanged() to topic '%s' with transport '%s'", topic.toStdString().c_str(), overlay_subscriber_.getTransport().c_str());
+    } catch (image_transport::TransportLoadException& e) {
+      QMessageBox::warning(widget_, tr("Loading image transport plugin failed"), e.what());
+    }
+  }
+
+  onMousePublish(ui_.publish_click_location_check_box->isChecked());
+}
+
+
 void ImageView::onZoom1(bool checked)
 {
   if (checked)
@@ -346,6 +420,34 @@ void ImageView::onZoom1(bool checked)
 void ImageView::onDynamicRange(bool checked)
 {
   ui_.max_range_double_spin_box->setEnabled(!checked);
+}
+
+void ImageView::onOverlayDynamicRange(bool checked)
+{
+  ui_.max_range_double_spin_box_overlay->setEnabled(!checked);
+}
+
+void ImageView::onFrozen(bool checked)
+{
+  if (checked)
+    conversion_mat_latched_ = conversion_mat_.clone();
+}
+
+void ImageView::onOverlayFrozen(bool checked)
+{
+  if (checked)
+    overlay_conversion_mat_latched_ = overlay_conversion_mat_.clone();
+}
+
+void ImageView::onOverlay(bool checked)
+{
+  ui_.topics_combo_box_overlay->setVisible(checked);
+  ui_.refresh_topics_push_button_overlay->setVisible(checked);
+  ui_.zoom_1_push_button_overlay->setVisible(checked);
+  ui_.frozen_check_box_overlay->setVisible(checked);
+  ui_.dynamic_range_check_box_overlay->setVisible(checked);
+  ui_.max_range_double_spin_box_overlay->setVisible(checked);
+  ui_.overlay_alpha->setVisible(checked);
 }
 
 void ImageView::updateNumGridlines()
@@ -621,8 +723,40 @@ void ImageView::callbackImage(const sensor_msgs::msg::Image::ConstSharedPtr& msg
   }
 
   // image must be copied since it uses the conversion_mat_ for storage which is asynchronously overwritten in the next callback invocation
-  QImage image(conversion_mat_.data, conversion_mat_.cols, conversion_mat_.rows, conversion_mat_.step[0], QImage::Format_RGB888);
-  ui_.image_frame->setImage(image);
+  QString selected = ui_.topics_combo_box_overlay->currentText();
+  if (ui_.overlay_check_box->isChecked() && selected != "" && !conversion_mat_.empty() && !overlay_conversion_mat_.empty())
+  {
+    cv::Mat* under;
+    cv::Mat* over;
+    if (ui_.frozen_check_box->isChecked())
+    {
+      under = &conversion_mat_latched_;
+    }
+    else
+    {
+      under = &conversion_mat_;
+    }
+    if (ui_.frozen_check_box_overlay->isChecked())
+    {
+      over = &overlay_conversion_mat_latched_;
+    }
+    else
+    {
+      over = &overlay_conversion_mat_;
+    }
+    if (under->empty() || over->empty())
+      return;
+
+    cv::Mat overlay_sum;
+    overlay_sum = (1 - ui_.overlay_alpha->value()) * (*under) + ui_.overlay_alpha->value() * (*over);
+    QImage image(overlay_sum.data, conversion_mat_.cols, conversion_mat_.rows, conversion_mat_.step[0], QImage::Format_RGB888);
+    ui_.image_frame->setImage(image);
+  }
+  else
+  {
+    QImage image(conversion_mat_.data, conversion_mat_.cols, conversion_mat_.rows, conversion_mat_.step[0], QImage::Format_RGB888);
+    ui_.image_frame->setImage(image);
+  }
 
   if (!ui_.zoom_1_push_button->isEnabled())
   {
@@ -631,6 +765,76 @@ void ImageView::callbackImage(const sensor_msgs::msg::Image::ConstSharedPtr& msg
   // Need to update the zoom 1 every new image in case the image aspect ratio changed,
   // though could check and see if the aspect ratio changed or not.
   onZoom1(ui_.zoom_1_push_button->isChecked());
+}
+
+void ImageView::callbackImageOverlay(const sensor_msgs::msg::Image::ConstSharedPtr& msg)
+{
+  try
+  {
+    cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::RGB8);
+    overlay_conversion_mat_ = cv_ptr->image;
+  }
+  catch (cv_bridge::Exception& e)
+  {
+      cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(msg);
+      if (msg->encoding == "CV_8UC3")
+      {
+        // assuming it is rgb
+        overlay_conversion_mat_ = cv_ptr->image;
+      } else if (msg->encoding == "8UC1") {
+        // convert gray to rgb
+        cv::cvtColor(cv_ptr->image, overlay_conversion_mat_, CV_GRAY2RGB);
+      } else if (msg->encoding == "16UC1" || msg->encoding == "32FC1") {
+        // scale / quantify
+        double min = 0;
+        double max = ui_.max_range_double_spin_box_overlay->value();
+        if (msg->encoding == "16UC1") max *= 1000;
+        if (ui_.dynamic_range_check_box_overlay->isChecked())
+        {
+          // dynamically adjust range based on min/max in image
+          cv::minMaxLoc(cv_ptr->image, &min, &max);
+          if (min == max) {
+            // completely homogeneous images are displayed in gray
+            min = 0;
+            max = 2;
+          }
+        }
+        cv::Mat img_scaled_8u;
+        cv::Mat(cv_ptr->image-min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
+        cv::cvtColor(img_scaled_8u, overlay_conversion_mat_, CV_GRAY2RGB);
+      } else {
+        qWarning("ImageView.callback_image_overlay() could not convert image from '%s' to 'rgb8' (%s)", msg->encoding.c_str(), e.what());
+        return;
+      }
+  }
+
+  // Handle rotation
+  switch(rotate_state_)
+  {
+    case ROTATE_90:
+    {
+      cv::Mat tmp;
+      cv::transpose(overlay_conversion_mat_, tmp);
+      cv::flip(tmp, overlay_conversion_mat_, 1);
+      break;
+    }
+    case ROTATE_180:
+    {
+      cv::Mat tmp;
+      cv::flip(overlay_conversion_mat_, tmp, -1);
+      overlay_conversion_mat_ = tmp;
+      break;
+    }
+    case ROTATE_270:
+    {
+      cv::Mat tmp;
+      cv::transpose(overlay_conversion_mat_, tmp);
+      cv::flip(tmp, overlay_conversion_mat_, 0);
+      break;
+    }
+    default:
+      break;
+  }
 }
 }
 

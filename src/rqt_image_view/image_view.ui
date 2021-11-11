@@ -9,15 +9,24 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>425</width>
-    <height>300</height>
+    <width>1309</width>
+    <height>1034</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Image View</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item>
@@ -45,11 +54,11 @@
         </item>
         <item>
          <widget class="QPushButton" name="zoom_1_push_button">
-          <property name="toolTip">
-           <string>Original zoom</string>
-          </property>
           <property name="enabled">
            <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string>Original zoom</string>
           </property>
           <property name="icon">
            <iconset theme="zoom-original">
@@ -61,18 +70,28 @@
          </widget>
         </item>
         <item>
+         <widget class="QCheckBox" name="frozen_check_box">
+          <property name="toolTip">
+           <string>Freeze frame</string>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QSpinBox" name="num_gridlines_spin_box">
           <property name="toolTip">
            <string># of gridlines to overlay</string>
           </property>
           <property name="minimum">
-           <double>0</double>
+           <number>0</number>
           </property>
           <property name="maximum">
-           <double>20</double>
+           <number>20</number>
           </property>
           <property name="value">
-           <double>0</double>
+           <number>0</number>
           </property>
          </widget>
         </item>
@@ -102,6 +121,103 @@
           </property>
           <property name="value">
            <double>10.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="overlay_check_box">
+          <property name="toolTip">
+           <string>Enable overlay</string>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="topics_combo_box_overlay">
+          <property name="sizeAdjustPolicy">
+           <enum>QComboBox::AdjustToContents</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="refresh_topics_push_button_overlay">
+          <property name="toolTip">
+           <string>Refresh topics</string>
+          </property>
+          <property name="icon">
+           <iconset theme="view-refresh">
+            <normaloff>.</normaloff>.</iconset>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="zoom_1_push_button_overlay">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string>Original zoom</string>
+          </property>
+          <property name="icon">
+           <iconset theme="zoom-original">
+            <normaloff>.</normaloff>.</iconset>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="frozen_check_box_overlay">
+          <property name="toolTip">
+           <string>Freeze overlay</string>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="dynamic_range_check_box_overlay">
+          <property name="toolTip">
+           <string>Dynamic depth range</string>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="max_range_double_spin_box_overlay">
+          <property name="toolTip">
+           <string>Max depth</string>
+          </property>
+          <property name="suffix">
+           <string>m</string>
+          </property>
+          <property name="minimum">
+           <double>0.010000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>100.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>10.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="overlay_alpha">
+          <property name="maximum">
+           <double>1.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.100000000000000</double>
+          </property>
+          <property name="value">
+           <double>0.500000000000000</double>
           </property>
          </widget>
         </item>
@@ -170,8 +286,7 @@
           </property>
           <property name="icon">
            <iconset theme="object-rotate-left">
-            <normaloff/>
-           </iconset>
+            <normaloff>.</normaloff>.</iconset>
           </property>
          </widget>
         </item>
@@ -192,8 +307,7 @@
           </property>
           <property name="icon">
            <iconset theme="object-rotate-right">
-            <normaloff/>
-           </iconset>
+            <normaloff>.</normaloff>.</iconset>
           </property>
          </widget>
         </item>
@@ -216,7 +330,7 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="image_layout" stretch="1,0">
+    <layout class="QHBoxLayout" name="image_layout" stretch="1">
      <property name="spacing">
       <number>0</number>
      </property>
@@ -233,8 +347,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>767</width>
-          <height>650</height>
+          <width>1307</width>
+          <height>947</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -244,34 +358,43 @@
          </sizepolicy>
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_4">
-          <item>
-           <widget class="rqt_image_view::RatioLayoutedFrame" name="image_frame">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>80</width>
-              <height>60</height>
-             </size>
-            </property>
-            <property name="contextMenuPolicy">
-             <enum>Qt::ActionsContextMenu</enum>
-            </property>
-            <property name="frameShape">
-             <enum>QFrame::NoFrame</enum>
-            </property>
-            <property name="lineWidth">
-             <number>1</number>
-            </property>
-           </widget>
-          </item>
-          <property name="margin">
-           <number>1</number>
-          </property>
+         <property name="leftMargin">
+          <number>1</number>
+         </property>
+         <property name="topMargin">
+          <number>1</number>
+         </property>
+         <property name="rightMargin">
+          <number>1</number>
+         </property>
+         <property name="bottomMargin">
+          <number>1</number>
+         </property>
+         <item>
+          <widget class="rqt_image_view::RatioLayoutedFrame" name="image_frame">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>80</width>
+             <height>60</height>
+            </size>
+           </property>
+           <property name="contextMenuPolicy">
+            <enum>Qt::ActionsContextMenu</enum>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::NoFrame</enum>
+           </property>
+           <property name="lineWidth">
+            <number>1</number>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
       </widget>

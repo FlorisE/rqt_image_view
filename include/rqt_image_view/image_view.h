@@ -85,13 +85,25 @@ protected:
 
   virtual void selectTopic(const QString& topic);
 
+  virtual void selectOverlayTopic(const QString& topic);
+
 protected slots:
 
   virtual void onTopicChanged(int index);
 
+  virtual void onOverlayTopicChanged(int index);
+
   virtual void onZoom1(bool checked);
 
   virtual void onDynamicRange(bool checked);
+
+  virtual void onOverlayDynamicRange(bool checked);
+
+  virtual void onFrozen(bool checked);
+
+  virtual void onOverlayFrozen(bool checked);
+
+  virtual void onOverlay(bool checked);
 
   virtual void saveImage();
 
@@ -112,6 +124,8 @@ protected:
 
   virtual void callbackImage(const sensor_msgs::msg::Image::ConstSharedPtr& msg);
 
+  virtual void callbackImageOverlay(const sensor_msgs::msg::Image::ConstSharedPtr& msg);
+
   virtual void invertPixels(int x, int y);
 
   QList<int> getGridIndices(int size) const;
@@ -123,8 +137,12 @@ protected:
   QWidget* widget_;
 
   image_transport::Subscriber subscriber_;
+  image_transport::Subscriber overlay_subscriber_;
 
   cv::Mat conversion_mat_;
+  cv::Mat conversion_mat_latched_;
+  cv::Mat overlay_conversion_mat_;
+  cv::Mat overlay_conversion_mat_latched_;
 
 private:
 
@@ -140,6 +158,8 @@ private:
   void syncRotateLabel();
 
   QString arg_topic_name;
+
+  QString arg_overlay_topic_name;
 
   rclcpp::Publisher<geometry_msgs::msg::Point>::SharedPtr pub_mouse_left_;
 
